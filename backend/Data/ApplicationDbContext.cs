@@ -24,25 +24,37 @@ public class ApplicationDbContext : DbContext
                 .HasColumnName("id");
 
             entity.Property(u => u.Name)
-                .HasColumnName("name");
+                .HasColumnName("name")
+                .HasMaxLength(100)
+                .IsRequired();
 
             entity.Property(u => u.Email)
-                .HasColumnName("email");
+                .HasColumnName("email")
+                .HasMaxLength(320)
+                .IsRequired();
 
             entity.Property(u => u.PasswordHash)
-                .HasColumnName("password_hash");
+                .HasColumnName("password_hash")
+                .IsRequired();
 
             entity.Property(u => u.Status)
-                .HasColumnName("status");
+                .HasColumnName("status")
+                .IsRequired();
 
             entity.Property(u => u.RegisteredAt)
-                .HasColumnName("registered_at");
+                .HasColumnName("registered_at")
+                .HasDefaultValueSql("NOW()")
+                .ValueGeneratedOnAdd();
 
             entity.Property(u => u.LastLoginAt)
                 .HasColumnName("last_login_at");
 
             entity.Property(u => u.ConfirmationToken)
                 .HasColumnName("confirmation_token");
+
+            entity.HasIndex(u => u.Email)
+                .IsUnique()
+                .HasDatabaseName("ux_users_email");
         });
     } 
 }
