@@ -21,7 +21,9 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     .AddCookie(options =>
     {
         options.Cookie.Name = "task4_auth";
-        
+        options.Cookie.SameSite = SameSiteMode.None;
+        options.Cookie.Name = "task4_auth";
+
         options.Events.OnRedirectToLogin = context =>
         {
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
