@@ -1,0 +1,51 @@
+* {
+    box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+    min-height: 100%;
+}
+
+body {
+    margin: 0;
+    background: #f5f6f8;
+    color: #212529;
+    font-family: Arial, sans-serif;
+}
+
+.auth-page {
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 24px;
+}
+
+.auth-card {
+    width: 100%;
+    max-width: 420px;
+    padding: 32px;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.auth-card h1 {
+    margin-bottom: 24px;
+}
+
+.auth-card .form-label {
+    font-weight: 500;
+}
+
+.auth-card .form-control {
+    min-height: 42px;
+}
+
+.auth-links {
+    margin-top: 20px;
+    text-align: center;
+}

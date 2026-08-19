@@ -4,6 +4,8 @@ using backend.Endpoints;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using backend.Configuration;
+using backend.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -38,7 +40,29 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 
 builder.Services.AddAuthorization();
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("Frontend", policy =>
+    {
+        policy
+            .WithOrigins(builder.Configuration["FrontendUrl"]!)
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
+    });
+});
+
+builder.Services.Configure<SmtpSettings>(
+    builder.Configuration.GetSection("Smtp")
+);
+
+builder.Services.AddSingleton<IEmailQueue, EmailQueue>();
+builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
+builder.Services.AddHostedService<EmailBackgroundService>();
+
 var app = builder.Build();
+
+app.UseCors("Frontend");
 
 app.UseAuthentication();
 app.UseAuthorization();

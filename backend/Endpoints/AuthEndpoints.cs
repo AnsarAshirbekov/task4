@@ -1,6 +1,7 @@
 using backend.Models;
 using backend.DTOs;
 using backend.Data;
+using backend.Services;
 using Npgsql;
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
@@ -9,6 +10,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 
 namespace backend.Endpoints;
+
 public static class AuthEndpoints
 {
     public static void MapAuthEndpoints(this WebApplication app)
@@ -17,7 +19,9 @@ public static class AuthEndpoints
     async (
         RegisterRequest request,
         ApplicationDbContext db,
-        IPasswordHasher<User> hasher
+        IPasswordHasher<User> hasher,
+        IEmailQueue emailQueue,
+        IConfiguration configuration
     ) =>
     {
         if (string.IsNullOrWhiteSpace(request.Name) ||
@@ -52,6 +56,17 @@ public static class AuthEndpoints
             return Results.Conflict("Email already exists");
         }
 
+        var frontendUrl = configuration["FrontendUrl"]!.TrimEnd('/');
+
+        var confirmationLink = $"{frontendUrl}/confirm?token={user.ConfirmationToken}";
+
+        await emailQueue.EnqueueAsync(
+            new EmailMessage(
+            user.Email,
+            confirmationLink
+            )
+        );
+
         return Results.Ok(new
         {
             message = "Registration successful"
@@ -59,102 +74,99 @@ public static class AuthEndpoints
     }
     );
 
-    app.MapGet("/api/auth/confirm",
-    async (
-        Guid token,
-        ApplicationDbContext db
-    ) =>
-    {
-        var user = await db.Users
-            .FirstOrDefaultAsync(u => u.ConfirmationToken == token);
-
-        if (user is null)
-            return Results.NotFound("Invalid confirmation token");
-
-        if (user.Status == "unverified")
+        app.MapGet("/api/auth/confirm",
+        async (
+            Guid token,
+            ApplicationDbContext db
+        ) =>
         {
-            user.Status = "active";
-            user.ConfirmationToken = null;
+            var user = await db.Users
+                .FirstOrDefaultAsync(u => u.ConfirmationToken == token);
 
-            await db.SaveChangesAsync();
+            if (user is null)
+                return Results.NotFound("Invalid confirmation token");
+
+            if (user.Status == "unverified")
+            {
+                user.Status = "active";
+                user.ConfirmationToken = null;
+
+                await db.SaveChangesAsync();
+            }
+
+            return Results.Ok("Email confirmed");
         }
-
-        return Results.Ok("Email confirmed");
-    }
-    );
-
-    app.MapPost("/api/auth/login",
-    async (
-        LoginRequest request,
-        ApplicationDbContext db,
-        IPasswordHasher<User> hasher,
-        HttpContext httpContext
-    ) =>
-    {
-        var email = request.Email.Trim().ToLowerInvariant();
-
-        var user = await db.Users.FirstOrDefaultAsync(u => u.Email == email);
-
-        if (user is null)
-            return Results.Unauthorized();
-
-        var passwordResult = hasher.VerifyHashedPassword(
-            user,
-            user.PasswordHash,
-            request.Password
         );
 
-        if (passwordResult == PasswordVerificationResult.Failed)
-            return Results.Unauthorized();
-
-        if (user.Status == "unverified")
-            return Results.BadRequest("Email is not confirmed");
-
-        if (user.Status == "blocked")
-            return Results.BadRequest("User is blocked");
-
-        user.LastLoginAt = DateTime.UtcNow;
-        await db.SaveChangesAsync();
-
-        var claims = new List<Claim>
+        app.MapPost("/api/auth/login",
+        async (
+            LoginRequest request,
+            ApplicationDbContext db,
+            IPasswordHasher<User> hasher,
+            HttpContext httpContext
+        ) =>
         {
+            var email = request.Email.Trim().ToLowerInvariant();
+
+            var user = await db.Users.FirstOrDefaultAsync(u => u.Email == email);
+
+            if (user is null)
+                return Results.Unauthorized();
+
+            var passwordResult = hasher.VerifyHashedPassword(
+                user,
+                user.PasswordHash,
+                request.Password
+            );
+
+            if (passwordResult == PasswordVerificationResult.Failed)
+                return Results.Unauthorized();
+
+            if (user.Status == "blocked")
+                return Results.BadRequest("User is blocked");
+
+            user.LastLoginAt = DateTime.UtcNow;
+            await db.SaveChangesAsync();
+
+            var claims = new List<Claim>
+            {
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new(ClaimTypes.Name, user.Name),
             new(ClaimTypes.Email, user.Email)
-        };
+            };
 
-        var identity = new ClaimsIdentity(
-            claims,
-            CookieAuthenticationDefaults.AuthenticationScheme
-        );
+            var identity = new ClaimsIdentity(
+                claims,
+                CookieAuthenticationDefaults.AuthenticationScheme
+            );
 
-        var principal = new ClaimsPrincipal(identity);
+            var principal = new ClaimsPrincipal(identity);
 
-        await httpContext.SignInAsync(
-            CookieAuthenticationDefaults.AuthenticationScheme,
-            principal
-        );
+            await httpContext.SignInAsync(
+                CookieAuthenticationDefaults.AuthenticationScheme,
+                principal
+            );
 
-        return Results.Ok(new
-        {
-            message = "Login successful"
+            return Results.Ok(new
+            {
+                message = "Login successful"
+            }
+            );
         }
         );
-    }
-    );
 
-    app.MapPost("/api/auth/logout",
-    async (HttpContext httpContext) =>
-    {
-        await httpContext.SignOutAsync(
-            CookieAuthenticationDefaults.AuthenticationScheme
-        );
-
-        return Results.Ok(new
+        app.MapPost("/api/auth/logout",
+        async (HttpContext httpContext) =>
         {
-            message = "Logout successful"
-        });
-    })
-    .RequireAuthorization();
+            await httpContext.SignOutAsync(
+                CookieAuthenticationDefaults.AuthenticationScheme
+            );
+
+            return Results.Ok(new
+            {
+                message = "Logout successful"
+            });
+        })
+        .RequireAuthorization();
     }
 }
