@@ -111,7 +111,10 @@ public static class AuthEndpoints
             var user = await db.Users.FirstOrDefaultAsync(u => u.Email == email);
 
             if (user is null)
-                return Results.Unauthorized();
+                return Results.Json(
+                    new { message = "Incorrect email or password" },
+                    statusCode: StatusCodes.Status401Unauthorized
+                );
 
             var passwordResult = hasher.VerifyHashedPassword(
                 user,
@@ -120,7 +123,10 @@ public static class AuthEndpoints
             );
 
             if (passwordResult == PasswordVerificationResult.Failed)
-                return Results.Unauthorized();
+                return Results.Json(
+                    new { message = "Incorrect email or password" },
+                    statusCode: StatusCodes.Status401Unauthorized
+                );
 
             if (user.Status == "blocked")
                 return Results.BadRequest("User is blocked");
