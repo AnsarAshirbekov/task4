@@ -69,17 +69,6 @@ public static class UserEndpoints
             return Results.NotFound("Users not found");
         }
 
-        var invalidUsers = users
-            .Where(u => u.Status != "active")
-            .ToList();
-
-        if (invalidUsers.Count > 0)
-        {
-            return Results.BadRequest(
-                "Only active users can be blocked"
-            );
-        }
-
         foreach (var user in users)
         {
             user.Status = "blocked";
@@ -150,7 +139,7 @@ public static class UserEndpoints
 
         foreach (var user in users)
         {
-            user.Status = "active";
+            user.Status = user.ConfirmationToken.HasValue ? "unverified" : "active";
         }
 
         await db.SaveChangesAsync();
