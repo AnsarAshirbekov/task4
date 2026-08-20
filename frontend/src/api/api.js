@@ -60,7 +60,7 @@ export function logout() {
 }
 
 export function getUsers() {
-    return request("/users");
+    return request("/api/users");
 }
 
 export function blockUsers(userIds) {

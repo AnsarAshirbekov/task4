@@ -11,7 +11,7 @@ public static class UserEndpoints
 {
     public static void MapUserEndpoints(this WebApplication app)
     {
-        app.MapGet("/users", async (ApplicationDbContext db, HttpContext httpContext) =>
+        app.MapGet("/api/users", async (ApplicationDbContext db, HttpContext httpContext) =>
 {
     var currentUser = await httpContext.GetCurrentUser(db);
 
